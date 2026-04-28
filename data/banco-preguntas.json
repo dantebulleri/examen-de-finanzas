@@ -1,0 +1,154 @@
+[
+  {
+    "id": "p001",
+    "tema": "Valuación de Bonos",
+    "unidad": 3,
+    "dificultad": "media",
+    "fuente": "Brealey, Myers & Allen - Cap. 3",
+    "tipo": "multiple_choice",
+    "enunciado": "Un bono con valor nominal de $\\$1000$, cupón anual del $8\\%$ y vencimiento en 5 años se negocia cuando la tasa de mercado es del $10\\%$. ¿Cuál es su precio aproximado?",
+    "opciones": [
+      "$\\$924{,}18$",
+      "$\\$1000{,}00$",
+      "$\\$1075{,}82$",
+      "$\\$856{,}30$"
+    ],
+    "respuesta_correcta": 0,
+    "explicacion": "El precio del bono se calcula como el valor presente de los cupones más el valor presente del nominal: $P = \\sum_{t=1}^{5} \\frac{80}{(1{,}10)^t} + \\frac{1000}{(1{,}10)^5} \\approx 303{,}26 + 620{,}92 = 924{,}18$. Como la tasa de mercado supera el cupón, el bono cotiza bajo la par.",
+    "tiempo_estimado_min": 4
+  },
+  {
+    "id": "p002",
+    "tema": "CAPM",
+    "unidad": 5,
+    "dificultad": "facil",
+    "fuente": "Ross, Westerfield & Jordan - Cap. 13",
+    "tipo": "multiple_choice",
+    "enunciado": "Según el modelo CAPM, la ecuación del retorno esperado de un activo es:",
+    "opciones": [
+      "$E(R_i) = R_f + \\beta_i \\cdot [E(R_m) - R_f]$",
+      "$E(R_i) = R_f \\cdot \\beta_i + E(R_m)$",
+      "$E(R_i) = \\beta_i \\cdot E(R_m)$",
+      "$E(R_i) = R_f + \\sigma_i \\cdot [E(R_m) - R_f]$"
+    ],
+    "respuesta_correcta": 0,
+    "explicacion": "El CAPM establece que $E(R_i) = R_f + \\beta_i \\cdot [E(R_m) - R_f]$, donde $R_f$ es la tasa libre de riesgo, $\\beta_i$ es la sensibilidad del activo al mercado y $[E(R_m) - R_f]$ es la prima de riesgo de mercado.",
+    "tiempo_estimado_min": 2
+  },
+  {
+    "id": "p003",
+    "tema": "VAN y TIR",
+    "unidad": 2,
+    "dificultad": "media",
+    "fuente": "Brealey, Myers & Allen - Cap. 5",
+    "tipo": "numeric",
+    "enunciado": "Un proyecto requiere una inversión inicial de $\\$10000$ y genera flujos de caja de $\\$4000$ al final del año 1, $\\$5000$ al final del año 2 y $\\$3000$ al final del año 3. Si la tasa de descuento es del $12\\%$, ¿cuál es el VAN del proyecto (en $\\$$, redondeado a 2 decimales)?",
+    "respuesta_correcta": 805.36,
+    "tolerancia": 2,
+    "explicacion": "$$VAN = -10000 + \\frac{4000}{1{,}12} + \\frac{5000}{1{,}12^2} + \\frac{3000}{1{,}12^3} = -10000 + 3571{,}43 + 3985{,}97 + 2135{,}34 = 692{,}74$$\n\nRedondeando: $VAN \\approx \\$692{,}74$. Como el VAN > 0, el proyecto agrega valor.",
+    "tiempo_estimado_min": 5
+  },
+  {
+    "id": "p004",
+    "tema": "Riesgo y Retorno",
+    "unidad": 4,
+    "dificultad": "facil",
+    "fuente": "Ross, Westerfield & Jordan - Cap. 11",
+    "tipo": "verdadero_falso",
+    "enunciado": "El riesgo diversificable (o no sistemático) puede eliminarse completamente si se construye un portafolio suficientemente diversificado.",
+    "respuesta_correcta": true,
+    "explicacion": "Verdadero. El riesgo no sistemático (o idiosincrático) está asociado a factores específicos de cada empresa y puede eliminarse mediante la diversificación. El riesgo que no puede eliminarse es el riesgo sistemático (o de mercado), que está relacionado con factores macroeconómicos que afectan a todos los activos.",
+    "tiempo_estimado_min": 2
+  },
+  {
+    "id": "p005",
+    "tema": "Estructura de Capital",
+    "unidad": 7,
+    "dificultad": "dificil",
+    "fuente": "Brealey, Myers & Allen - Cap. 17",
+    "tipo": "multiple_choice",
+    "enunciado": "Según el Teorema de Modigliani-Miller con impuestos corporativos, el valor de una empresa apalancada es:",
+    "opciones": [
+      "$V_L = V_U + T_C \\cdot D$",
+      "$V_L = V_U - T_C \\cdot D$",
+      "$V_L = V_U$",
+      "$V_L = V_U + (1 - T_C) \\cdot D$"
+    ],
+    "respuesta_correcta": 0,
+    "explicacion": "Con impuestos corporativos, MM demuestra que $V_L = V_U + T_C \\cdot D$, donde $T_C$ es la tasa impositiva corporativa y $D$ es el valor de la deuda. El término $T_C \\cdot D$ representa el beneficio fiscal (tax shield) de la deuda, que aumenta el valor de la empresa apalancada respecto a la no apalancada.",
+    "tiempo_estimado_min": 3
+  },
+  {
+    "id": "p006",
+    "tema": "CAPM",
+    "unidad": 5,
+    "dificultad": "media",
+    "fuente": "Brealey, Myers & Allen - Cap. 8",
+    "tipo": "numeric",
+    "enunciado": "Una acción tiene un beta de $1{,}5$. La tasa libre de riesgo es $4\\%$ y el retorno esperado del mercado es $10\\%$. Según el CAPM, ¿cuál es el retorno esperado de la acción (en porcentaje)?",
+    "respuesta_correcta": 13,
+    "tolerancia": 1,
+    "explicacion": "Aplicando el CAPM: $E(R_i) = R_f + \\beta_i \\cdot [E(R_m) - R_f] = 4\\% + 1{,}5 \\times (10\\% - 4\\%) = 4\\% + 1{,}5 \\times 6\\% = 4\\% + 9\\% = 13\\%$",
+    "tiempo_estimado_min": 3
+  },
+  {
+    "id": "p007",
+    "tema": "Valuación de Bonos",
+    "unidad": 3,
+    "dificultad": "facil",
+    "fuente": "Ross, Westerfield & Jordan - Cap. 7",
+    "tipo": "verdadero_falso",
+    "enunciado": "Cuando la tasa de interés de mercado sube, el precio de un bono de tasa fija existente sube también.",
+    "respuesta_correcta": false,
+    "explicacion": "Falso. Existe una relación inversa entre precio del bono y tasa de interés. Cuando las tasas de mercado suben, los bonos existentes con cupones fijos se vuelven menos atractivos en comparación, por lo que su precio cae para compensar al inversor con un mayor rendimiento implícito.",
+    "tiempo_estimado_min": 2
+  },
+  {
+    "id": "p008",
+    "tema": "Riesgo y Retorno",
+    "unidad": 4,
+    "dificultad": "media",
+    "fuente": "Brealey, Myers & Allen - Cap. 7",
+    "tipo": "multiple_choice",
+    "enunciado": "El coeficiente de variación de un activo se calcula como:",
+    "opciones": [
+      "$CV = \\dfrac{\\sigma}{E(R)}$",
+      "$CV = \\dfrac{E(R)}{\\sigma}$",
+      "$CV = \\sigma \\cdot E(R)$",
+      "$CV = \\dfrac{\\sigma^2}{E(R)}$"
+    ],
+    "respuesta_correcta": 0,
+    "explicacion": "El coeficiente de variación es $CV = \\frac{\\sigma}{E(R)}$, donde $\\sigma$ es el desvío estándar y $E(R)$ el retorno esperado. Mide el riesgo por unidad de retorno, siendo útil para comparar activos con distintos niveles de retorno.",
+    "tiempo_estimado_min": 2
+  },
+  {
+    "id": "p009",
+    "tema": "VAN y TIR",
+    "unidad": 2,
+    "dificultad": "dificil",
+    "fuente": "Brealey, Myers & Allen - Cap. 5",
+    "tipo": "verdadero_falso",
+    "enunciado": "Si dos proyectos mutuamente excluyentes tienen perfiles de VAN que se cruzan, siempre se debe elegir el de mayor TIR.",
+    "respuesta_correcta": false,
+    "explicacion": "Falso. Cuando los perfiles de VAN se cruzan, el criterio de la TIR puede llevar a decisiones incorrectas porque asume que los flujos intermedios se reinvierten a la propia TIR. El criterio correcto es el VAN calculado con la tasa de costo de capital de la empresa, ya que maximiza la riqueza del accionista.",
+    "tiempo_estimado_min": 3
+  },
+  {
+    "id": "p010",
+    "tema": "Estructura de Capital",
+    "unidad": 7,
+    "dificultad": "media",
+    "fuente": "Ross, Westerfield & Jordan - Cap. 16",
+    "tipo": "multiple_choice",
+    "enunciado": "El Costo Promedio Ponderado de Capital (WACC) se define como:",
+    "opciones": [
+      "$WACC = \\dfrac{E}{V} \\cdot R_E + \\dfrac{D}{V} \\cdot R_D \\cdot (1 - T_C)$",
+      "$WACC = \\dfrac{E}{V} \\cdot R_E + \\dfrac{D}{V} \\cdot R_D$",
+      "$WACC = R_E + R_D \\cdot (1 - T_C)$",
+      "$WACC = \\dfrac{R_E + R_D}{2} \\cdot (1 - T_C)$"
+    ],
+    "respuesta_correcta": 0,
+    "explicacion": "El WACC es $\\frac{E}{V} \\cdot R_E + \\frac{D}{V} \\cdot R_D \\cdot (1 - T_C)$, donde $E$ es el valor del equity, $D$ la deuda, $V = E + D$ el valor total, $R_E$ el costo del equity, $R_D$ el costo de la deuda y $T_C$ la tasa impositiva. El factor $(1 - T_C)$ refleja el escudo fiscal de los intereses.",
+    "tiempo_estimado_min": 3
+  }
+]
