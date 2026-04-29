@@ -1,27 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, BookOpen, Clock, Layers } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { seleccionarPreguntas, crearSesion, getTemasUnicos } from "@/lib/exam-utils";
-import { guardarSesion } from "@/lib/storage";
-import type { Pregunta, ConfigExamen } from "@/types/pregunta";
+import { guardarSesion, cargarHistorial } from "@/lib/storage";
+import type { Pregunta, ConfigExamen, ResultadoExamen } from "@/types/pregunta";
 
 interface ExamSetupProps {
   banco: Pregunta[];
@@ -29,19 +12,56 @@ interface ExamSetupProps {
 
 const OPCIONES_CANTIDAD = [5, 10, 15, 20];
 
+function calcularAccuracyPorTema(
+  historial: ResultadoExamen[]
+): Record<string, number> {
+  const mapa: Record<string, { c: number; t: number }> = {};
+  for (const r of historial) {
+    for (const [tema, datos] of Object.entries(r.aciertoPorTema)) {
+      if (!mapa[tema]) mapa[tema] = { c: 0, t: 0 };
+      mapa[tema].c += datos.correctas;
+      mapa[tema].t += datos.total;
+    }
+  }
+  const result: Record<string, number> = {};
+  for (const [tema, d] of Object.entries(mapa)) {
+    result[tema] = d.t > 0 ? d.c / d.t : -1;
+  }
+  return result;
+}
+
 export function ExamSetup({ banco }: ExamSetupProps) {
   const router = useRouter();
-  const temas = getTemasUnicos(banco);
+  const temas = useMemo(() => getTemasUnicos(banco), [banco]);
 
+  const [modo, setModo] = useState<"recomendado" | "manual">("recomendado");
   const [cantidad, setCantidad] = useState(10);
   const [temasSeleccionados, setTemasSeleccionados] = useState<string[]>([]);
   const [dificultad, setDificultad] = useState<ConfigExamen["dificultad"]>("todas");
   const [tiempoTipo, setTiempoTipo] = useState<"auto" | "manual">("auto");
   const [tiempoManual, setTiempoManual] = useState(30);
+  const [accuracy, setAccuracy] = useState<Record<string, number>>({});
   const [advertencia, setAdvertencia] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sesionesTotal, setSesionesTotal] = useState(0);
+
+  useEffect(() => {
+    const historial = cargarHistorial();
+    setSesionesTotal(historial.length);
+    const acc = calcularAccuracyPorTema(historial);
+    setAccuracy(acc);
+
+    if (modo === "recomendado") {
+      const flojos = temas.filter((t) => {
+        const a = acc[t];
+        return a === undefined || a === -1 || a < 0.6;
+      });
+      setTemasSeleccionados(flojos.length > 0 ? flojos : temas);
+    }
+  }, [modo, temas]);
 
   const toggleTema = (tema: string) => {
+    if (modo === "recomendado") setModo("manual");
     setTemasSeleccionados((prev) =>
       prev.includes(tema) ? prev.filter((t) => t !== tema) : [...prev, tema]
     );
@@ -54,222 +74,471 @@ export function ExamSetup({ banco }: ExamSetupProps) {
       dificultad,
       tiempoLimiteMin: tiempoTipo === "auto" ? "auto" : tiempoManual,
     };
-
     const { preguntas, advertencia: adv } = seleccionarPreguntas(banco, config);
-
     if (preguntas.length === 0) {
-      setError(adv ?? "No hay preguntas disponibles.");
+      setError(adv ?? "No hay preguntas disponibles con esos filtros.");
       setAdvertencia(null);
       return;
     }
-
     setError(null);
     setAdvertencia(adv);
-
+    const sesion = crearSesion(config, preguntas);
+    guardarSesion(sesion);
     if (adv) {
-      setTimeout(() => {
-        const sesion = crearSesion(config, preguntas);
-        guardarSesion(sesion);
-        router.push("/examen");
-      }, 1500);
+      setTimeout(() => router.push("/examen"), 1200);
     } else {
-      const sesion = crearSesion(config, preguntas);
-      guardarSesion(sesion);
       router.push("/examen");
     }
   };
 
+  const accentSoft = "color-mix(in oklch, var(--accent) 40%, transparent)";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-4">
-      <div className="max-w-2xl mx-auto pt-8 pb-16">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium mb-4">
-            <BookOpen className="w-4 h-4" />
-            Finanzas · Licenciatura en Economía · UNR
+    <div
+      className="fx-screen"
+      style={{ overflowY: "auto", minHeight: "100vh" }}
+    >
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "0 0 100px" }}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 20px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                background: "var(--accent)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--accent-fg)",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M4 17L9 11l4 3 7-8" />
+              </svg>
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.01em" }}>FinExam</span>
+            <span
+              className="mono"
+              style={{
+                fontSize: 10,
+                color: "var(--fg-2)",
+                padding: "2px 7px",
+                border: "1px solid var(--line-soft)",
+                borderRadius: 5,
+                letterSpacing: "0.04em",
+              }}
+            >
+              UNR
+            </span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-            FinExam UNR
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Configurá tu examen y empezá a practicar
-          </p>
+          <button
+            onClick={() => router.push("/historial")}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--fg-2)",
+              cursor: "pointer",
+              padding: 6,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 17 9 11 13 15 21 6" />
+              <polyline points="14 6 21 6 21 13" />
+            </svg>
+          </button>
         </div>
 
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {advertencia && (
-          <Alert variant="warning" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{advertencia} Iniciando en un momento...</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="space-y-4">
-          {/* Cantidad */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Layers className="w-4 h-4 text-blue-600" />
-                Cantidad de preguntas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 flex-wrap">
-                {OPCIONES_CANTIDAD.map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setCantidad(n)}
-                    className={`px-5 py-2 rounded-lg border-2 font-semibold text-sm transition-all ${
-                      cantidad === n
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-slate-200 hover:border-blue-300 text-slate-700 dark:text-slate-300 dark:border-slate-600"
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Temas */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-blue-600" />
-                Temas
-              </CardTitle>
-              <CardDescription>
-                Dejá todo vacío para incluir todos los temas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {temas.map((tema) => (
-                  <button
-                    key={tema}
-                    onClick={() => toggleTema(tema)}
-                    className={`px-3 py-1.5 rounded-full text-sm border transition-all ${
-                      temasSeleccionados.includes(tema)
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-blue-300"
-                    }`}
-                  >
-                    {tema}
-                  </button>
-                ))}
-              </div>
-              {temasSeleccionados.length > 0 && (
-                <button
-                  onClick={() => setTemasSeleccionados([])}
-                  className="mt-3 text-xs text-blue-600 hover:underline"
-                >
-                  Limpiar selección
-                </button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Dificultad */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Dificultad</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={dificultad}
-                onValueChange={(v) =>
-                  setDificultad(v as ConfigExamen["dificultad"])
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  <SelectItem value="facil">Solo fáciles</SelectItem>
-                  <SelectItem value="media">Solo medias</SelectItem>
-                  <SelectItem value="dificil">Solo difíciles</SelectItem>
-                  <SelectItem value="mixto">Mixto (aleatorio)</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-
-          {/* Tiempo */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-600" />
-                Tiempo límite
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTiempoTipo("auto")}
-                  className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                    tiempoTipo === "auto"
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-slate-200 text-slate-700 dark:text-slate-300 dark:border-slate-600"
-                  }`}
-                >
-                  Auto (según preguntas)
-                </button>
-                <button
-                  onClick={() => setTiempoTipo("manual")}
-                  className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                    tiempoTipo === "manual"
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-slate-200 text-slate-700 dark:text-slate-300 dark:border-slate-600"
-                  }`}
-                >
-                  Manual
-                </button>
-              </div>
-              {tiempoTipo === "manual" && (
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min={5}
-                    max={180}
-                    value={tiempoManual}
-                    onChange={(e) => setTiempoManual(Number(e.target.value))}
-                    className="w-24 px-3 py-2 border rounded-md text-sm border-slate-200 dark:border-slate-600 bg-background"
-                  />
-                  <span className="text-sm text-slate-600 dark:text-slate-400">
-                    minutos
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Button
-            onClick={handleIniciar}
-            size="lg"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base"
+        {/* Hero */}
+        <div style={{ padding: "16px 20px 22px" }}>
+          <span
+            className="mono"
+            style={{ fontSize: 10, color: "var(--fg-3)", letterSpacing: "0.08em", textTransform: "uppercase" }}
           >
-            Iniciar examen
-          </Button>
+            Sesión #{String(sesionesTotal + 1).padStart(3, "0")}
+          </span>
+          <h1 style={{ fontSize: 28, fontWeight: 600, margin: "6px 0 0", letterSpacing: "-0.02em", lineHeight: 1.15, color: "var(--fg-0)" }}>
+            {modo === "recomendado" ? "Repaso del día" : "Examen personalizado"}
+          </h1>
+          {modo === "recomendado" && temasSeleccionados.length > 0 && (
+            <p style={{ fontSize: 14, color: "var(--fg-2)", margin: "6px 0 0", lineHeight: 1.4 }}>
+              Seleccioné los temas con{" "}
+              <span style={{ color: "var(--fg-1)", fontWeight: 500 }}>accuracy &lt; 60%</span>
+              {" "}para que practiques lo flojo.
+            </p>
+          )}
+        </div>
 
-          <div className="text-center">
+        {/* Modo toggle */}
+        <div style={{ padding: "0 20px 20px" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 3,
+              padding: 3,
+              background: "var(--bg-1)",
+              borderRadius: "var(--r-lg)",
+              border: "1px solid var(--line-soft)",
+            }}
+          >
+            {(
+              [
+                { id: "recomendado" as const, label: "Recomendado" },
+                { id: "manual" as const, label: "Manual" },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setModo(m.id)}
+                style={{
+                  flex: 1,
+                  padding: "9px 0",
+                  borderRadius: 11,
+                  border: "none",
+                  background: modo === m.id ? "var(--bg-3)" : "transparent",
+                  color: modo === m.id ? "var(--fg-0)" : "var(--fg-2)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 160ms ease",
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Error / advertencia */}
+        {error && (
+          <div
+            style={{
+              margin: "0 20px 16px",
+              padding: "12px 14px",
+              borderRadius: "var(--r-md)",
+              background: "color-mix(in oklch, var(--bad) 12%, transparent)",
+              border: "1px solid color-mix(in oklch, var(--bad) 40%, transparent)",
+              color: "var(--bad)",
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        )}
+        {advertencia && (
+          <div
+            style={{
+              margin: "0 20px 16px",
+              padding: "12px 14px",
+              borderRadius: "var(--r-md)",
+              background: "color-mix(in oklch, var(--warn) 12%, transparent)",
+              border: "1px solid color-mix(in oklch, var(--warn) 40%, transparent)",
+              color: "var(--warn)",
+              fontSize: 13,
+            }}
+          >
+            {advertencia} Iniciando…
+          </div>
+        )}
+
+        {/* Cantidad */}
+        <div style={{ padding: "0 20px 20px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 10,
+            }}
+          >
+            <span style={{ fontSize: 12, color: "var(--fg-2)", fontWeight: 500 }}>
+              Preguntas
+            </span>
+            <span className="num" style={{ fontSize: 11, color: "var(--fg-3)" }}>
+              ≈ {Math.round(cantidad * 2.5)} min
+            </span>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 8,
+            }}
+          >
+            {OPCIONES_CANTIDAD.map((n) => (
+              <button
+                key={n}
+                onClick={() => setCantidad(n)}
+                style={{
+                  padding: "14px 0",
+                  borderRadius: "var(--r-md)",
+                  background: cantidad === n ? "var(--accent-soft)" : "var(--bg-1)",
+                  color: cantidad === n ? "var(--accent)" : "var(--fg-1)",
+                  border: cantidad === n
+                    ? `1px solid ${accentSoft}`
+                    : "1px solid var(--line-soft)",
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 500,
+                  fontSize: 20,
+                  cursor: "pointer",
+                  transition: "all 140ms ease",
+                }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Temas */}
+        <div style={{ padding: "0 20px 20px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 10,
+            }}
+          >
+            <span style={{ fontSize: 12, color: "var(--fg-2)", fontWeight: 500 }}>
+              Temas
+            </span>
+            <span className="num" style={{ fontSize: 11, color: "var(--fg-3)" }}>
+              {temasSeleccionados.length === 0 ? "Todos" : `${temasSeleccionados.length} de ${temas.length}`}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {temas.map((tema) => {
+              const acc = accuracy[tema];
+              const isOn = temasSeleccionados.includes(tema);
+              const hasData = acc !== undefined && acc !== -1;
+              const dotColor = !hasData
+                ? "var(--fg-3)"
+                : acc >= 0.75
+                ? "var(--good)"
+                : acc >= 0.55
+                ? "var(--warn)"
+                : "var(--bad)";
+
+              return (
+                <button
+                  key={tema}
+                  onClick={() => toggleTema(tema)}
+                  className={`chip ${isOn ? "active" : ""}`}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: dotColor,
+                      opacity: isOn ? 1 : 0.7,
+                    }}
+                  />
+                  {tema}
+                  {hasData && (
+                    <span
+                      className="num"
+                      style={{
+                        fontSize: 10,
+                        color: isOn ? "color-mix(in oklch, var(--accent) 70%, var(--fg-3))" : "var(--fg-3)",
+                        marginLeft: 2,
+                      }}
+                    >
+                      {Math.round(acc * 100)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {temasSeleccionados.length > 0 && (
             <button
-              onClick={() => router.push("/historial")}
-              className="text-sm text-blue-600 hover:underline"
+              onClick={() => { setModo("manual"); setTemasSeleccionados([]); }}
+              style={{
+                marginTop: 10,
+                background: "transparent",
+                border: "none",
+                color: "var(--fg-3)",
+                fontSize: 12,
+                cursor: "pointer",
+                padding: 0,
+              }}
             >
-              Ver historial de exámenes
+              Limpiar selección →
             </button>
-          </div>
+          )}
+        </div>
 
-          <div className="text-center text-xs text-slate-400 mt-4">
-            {banco.length} preguntas en el banco
+        {/* Dificultad */}
+        <div style={{ padding: "0 20px 20px" }}>
+          <span style={{ fontSize: 12, color: "var(--fg-2)", fontWeight: 500, display: "block", marginBottom: 10 }}>
+            Dificultad
+          </span>
+          <div
+            style={{
+              display: "flex",
+              gap: 4,
+              padding: 3,
+              background: "var(--bg-1)",
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--line-soft)",
+            }}
+          >
+            {(
+              [
+                { id: "todas" as const, label: "Todas" },
+                { id: "facil" as const, label: "Fácil" },
+                { id: "media" as const, label: "Media" },
+                { id: "dificil" as const, label: "Difícil" },
+              ] as const
+            ).map((d) => (
+              <button
+                key={d.id}
+                onClick={() => setDificultad(d.id)}
+                style={{
+                  flex: 1,
+                  padding: "7px 0",
+                  borderRadius: 9,
+                  border: "none",
+                  background: dificultad === d.id ? "var(--bg-3)" : "transparent",
+                  color: dificultad === d.id ? "var(--fg-0)" : "var(--fg-2)",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 140ms ease",
+                }}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
+        </div>
+
+        {/* Tiempo */}
+        <div style={{ padding: "0 20px 20px" }}>
+          <span style={{ fontSize: 12, color: "var(--fg-2)", fontWeight: 500, display: "block", marginBottom: 10 }}>
+            Tiempo límite
+          </span>
+          <div
+            style={{
+              display: "flex",
+              gap: 4,
+              padding: 3,
+              background: "var(--bg-1)",
+              borderRadius: "var(--r-md)",
+              border: "1px solid var(--line-soft)",
+              marginBottom: 10,
+            }}
+          >
+            {(
+              [
+                { id: "auto" as const, label: "Auto (estimado)" },
+                { id: "manual" as const, label: "Manual" },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTiempoTipo(t.id)}
+                style={{
+                  flex: 1,
+                  padding: "7px 0",
+                  borderRadius: 9,
+                  border: "none",
+                  background: tiempoTipo === t.id ? "var(--bg-3)" : "transparent",
+                  color: tiempoTipo === t.id ? "var(--fg-0)" : "var(--fg-2)",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 140ms ease",
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tiempoTipo === "manual" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="number"
+                min={5}
+                max={180}
+                value={tiempoManual}
+                onChange={(e) => setTiempoManual(Number(e.target.value))}
+                style={{
+                  width: 80,
+                  padding: "8px 12px",
+                  borderRadius: "var(--r-sm)",
+                  border: "1px solid var(--line-soft)",
+                  background: "var(--bg-1)",
+                  color: "var(--fg-0)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 16,
+                  outline: "none",
+                }}
+              />
+              <span style={{ fontSize: 13, color: "var(--fg-2)" }}>minutos</span>
+            </div>
+          )}
+        </div>
+
+        {/* Info banco */}
+        <div style={{ padding: "0 20px" }}>
+          <span
+            className="mono"
+            style={{ fontSize: 10, color: "var(--fg-3)", letterSpacing: "0.04em" }}
+          >
+            {banco.length} PREGUNTAS EN EL BANCO · {sesionesTotal} SESIONES PREVIAS
+          </span>
+        </div>
+      </div>
+
+      {/* CTA sticky */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: "16px 20px 28px",
+          background: "linear-gradient(to top, var(--bg-0) 65%, transparent)",
+        }}
+      >
+        <div style={{ maxWidth: 480, margin: "0 auto" }}>
+          <button
+            className="btn-primary"
+            onClick={handleIniciar}
+            style={{
+              width: "100%",
+              padding: "16px 0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              fontSize: 15,
+            }}
+          >
+            <span>
+              Empezar sesión · {cantidad} preguntas
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="13 6 19 12 13 18" />
+            </svg>
+          </button>
+          <p
+            className="mono"
+            style={{
+              textAlign: "center",
+              fontSize: 10,
+              color: "var(--fg-3)",
+              margin: "8px 0 0",
+              letterSpacing: "0.04em",
+            }}
+          >
+            ENTER ↵
+          </p>
         </div>
       </div>
     </div>

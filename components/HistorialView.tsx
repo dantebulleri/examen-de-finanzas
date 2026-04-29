@@ -3,20 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Trash2,
-  RefreshCw,
-  TrendingUp,
-  BookOpen,
-  AlertTriangle,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Area,
+  AreaChart,
+  ReferenceLine,
+} from "recharts";
 import {
   Dialog,
   DialogContent,
@@ -25,15 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { cargarHistorial, borrarHistorial } from "@/lib/storage";
 import { formatFecha, formatTiempo } from "@/lib/utils";
 import type { ResultadoExamen } from "@/types/pregunta";
@@ -53,211 +39,498 @@ export function HistorialView() {
     setConfirmarBorrar(false);
   };
 
-  const aciertoPorTemaAgregado = calcularAciertosPorTema(historial);
-
   const datosGrafico = historial.map((r, i) => ({
-    examen: i + 1,
+    n: i + 1,
     nota: r.nota,
-    fecha: formatFecha(r.fecha).split(",")[0],
+    pct: r.porcentajeAciertos,
   }));
 
   const promedio =
     historial.length > 0
-      ? (historial.reduce((acc, r) => acc + r.nota, 0) / historial.length).toFixed(2)
+      ? historial.reduce((acc, r) => acc + r.nota, 0) / historial.length
       : null;
 
+  const mejor = historial.length > 0
+    ? Math.max(...historial.map((r) => r.nota))
+    : null;
+
+  const tendencia = historial.length >= 2
+    ? historial[historial.length - 1].nota - historial[historial.length - 2].nota
+    : null;
+
+  const aciertoPorTema = calcularAciertosPorTema(historial);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-4">
-      <div className="max-w-3xl mx-auto pt-6 pb-16 space-y-5">
-        <div className="flex items-center justify-between">
+    <div style={{ minHeight: "100vh", background: "var(--bg-0)", padding: "0 20px" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", paddingTop: 40, paddingBottom: 80 }}>
+
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            marginBottom: 28,
+          }}
+        >
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h1
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: "var(--fg-0)",
+                letterSpacing: "-0.02em",
+                margin: 0,
+              }}
+            >
               Historial
             </h1>
-            {historial.length > 0 && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {historial.length} examen{historial.length !== 1 ? "es" : ""} rendido{historial.length !== 1 ? "s" : ""} · Promedio:{" "}
-                <span className="font-semibold text-blue-600">{promedio}/10</span>
-              </p>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {historial.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmarBorrar(true)}
-                className="text-red-600 hover:bg-red-50 border-red-200 dark:hover:bg-red-900/20"
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Borrar
-              </Button>
-            )}
-            <Button
-              size="sm"
-              onClick={() => router.push("/")}
-              className="bg-blue-600 hover:bg-blue-700"
+            <span
+              className="mono"
+              style={{ fontSize: 11, color: "var(--fg-3)", letterSpacing: "0.04em" }}
             >
-              <RefreshCw className="w-4 h-4 mr-1" />
-              Nuevo
-            </Button>
+              {historial.length} sesión{historial.length !== 1 ? "es" : ""} registrada{historial.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            {historial.length > 0 && (
+              <button
+                onClick={() => setConfirmarBorrar(true)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: "var(--r-md)",
+                  background: "transparent",
+                  border: `1px solid color-mix(in oklch, var(--bad) 40%, transparent)`,
+                  color: "var(--bad)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Borrar todo
+              </button>
+            )}
+            <button
+              onClick={() => router.push("/")}
+              className="btn-primary"
+              style={{ padding: "8px 16px", fontSize: 12 }}
+            >
+              Nuevo examen
+            </button>
           </div>
         </div>
 
         {historial.length === 0 ? (
-          <div className="text-center py-16 text-slate-400">
-            <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-40" />
-            <p className="text-lg font-medium">Todavía no rendiste ningún examen</p>
-            <p className="text-sm mt-1">Tus resultados aparecerán acá</p>
-          </div>
+          <EmptyState />
         ) : (
           <>
-            {/* Gráfico de notas */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-blue-600" />
-                  Evolución de notas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={datosGrafico} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis
-                      dataKey="examen"
-                      tick={{ fontSize: 12 }}
-                      label={{ value: "Examen #", position: "insideBottom", offset: -2, fontSize: 11 }}
-                    />
-                    <YAxis
-                      domain={[0, 10]}
-                      ticks={[0, 2, 4, 6, 8, 10]}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip
-                      formatter={(value) => {
-                        const n = typeof value === "number" ? value : parseFloat(String(value));
-                        return [`${n.toFixed(1)}/10`, "Nota"];
-                      }}
-                      labelFormatter={(label) => `Examen #${label}`}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="nota"
-                      stroke="#2563eb"
-                      strokeWidth={2}
-                      dot={{ r: 4, fill: "#2563eb" }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            {/* KPI strip */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 10,
+                marginBottom: 20,
+              }}
+            >
+              <KpiCard
+                label="PROMEDIO"
+                value={promedio !== null ? promedio.toFixed(2) : "—"}
+                sub="/10"
+                color={
+                  promedio === null ? undefined
+                    : promedio >= 7 ? "var(--good)"
+                    : promedio >= 4 ? "var(--warn)"
+                    : "var(--bad)"
+                }
+              />
+              <KpiCard
+                label="MEJOR NOTA"
+                value={mejor !== null ? mejor.toFixed(1) : "—"}
+                sub="/10"
+                color="var(--good)"
+              />
+              <KpiCard
+                label="TENDENCIA"
+                value={
+                  tendencia === null
+                    ? "—"
+                    : tendencia > 0
+                    ? `+${tendencia.toFixed(1)}`
+                    : tendencia.toFixed(1)
+                }
+                sub="último vs anterior"
+                color={
+                  tendencia === null ? undefined
+                    : tendencia > 0 ? "var(--good)"
+                    : tendencia < 0 ? "var(--bad)"
+                    : "var(--fg-2)"
+                }
+              />
+            </div>
 
-            {/* Aciertos por tema */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                  Aciertos por tema (peor a mejor)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {aciertoPorTemaAgregado.map(({ tema, correctas, total }) => {
-                  const pct = Math.round((correctas / total) * 100);
-                  const color =
-                    pct >= 70
-                      ? "bg-green-500"
-                      : pct >= 40
-                      ? "bg-yellow-500"
-                      : "bg-red-500";
-                  return (
-                    <div key={tema}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">
-                          {tema}
-                        </span>
-                        <span className="text-slate-500 dark:text-slate-400">
-                          {correctas}/{total} ({pct}%)
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5">
-                        <div
-                          className={`h-2.5 rounded-full transition-all ${color}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+            {/* Line chart */}
+            <div className="card" style={{ padding: "18px 20px", marginBottom: 20 }}>
+              <span
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  color: "var(--fg-3)",
+                  letterSpacing: "0.08em",
+                  display: "block",
+                  marginBottom: 14,
+                }}
+              >
+                EVOLUCIÓN DE NOTAS
+              </span>
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart
+                  data={datosGrafico}
+                  margin={{ top: 8, right: 8, bottom: 0, left: -20 }}
+                >
+                  <defs>
+                    <linearGradient id="gradAccent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="oklch(0.78 0.18 155)" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="oklch(0.78 0.18 155)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--line-soft)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="n"
+                    tick={{ fontSize: 10, fill: "var(--fg-3)", fontFamily: "var(--font-mono)" }}
+                    axisLine={false}
+                    tickLine={false}
+                    label={{
+                      value: "Sesión",
+                      position: "insideBottom",
+                      offset: -2,
+                      fontSize: 9,
+                      fill: "var(--fg-3)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  />
+                  <YAxis
+                    domain={[0, 10]}
+                    ticks={[0, 4, 7, 10]}
+                    tick={{ fontSize: 10, fill: "var(--fg-3)", fontFamily: "var(--font-mono)" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <ReferenceLine
+                    y={7}
+                    stroke="var(--good)"
+                    strokeDasharray="4 3"
+                    strokeOpacity={0.4}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--bg-1)",
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      color: "var(--fg-0)",
+                    }}
+                    formatter={(value) => {
+                      const n = typeof value === "number" ? value : parseFloat(String(value));
+                      return [`${n.toFixed(1)}/10`, "Nota"];
+                    }}
+                    labelFormatter={(label) => `Sesión #${label}`}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="nota"
+                    stroke="oklch(0.78 0.18 155)"
+                    strokeWidth={2}
+                    fill="url(#gradAccent)"
+                    dot={{ r: 4, fill: "oklch(0.78 0.18 155)", strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: "oklch(0.78 0.18 155)" }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
 
-            {/* Lista de exámenes */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Exámenes rendidos</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {[...historial].reverse().map((r) => {
-                    const colorNota =
-                      r.nota >= 7
-                        ? "success"
-                        : r.nota >= 4
-                        ? "warning"
-                        : "destructive";
+            {/* Topic breakdown */}
+            {aciertoPorTema.length > 0 && (
+              <div className="card" style={{ padding: "18px 20px", marginBottom: 20 }}>
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    color: "var(--fg-3)",
+                    letterSpacing: "0.08em",
+                    display: "block",
+                    marginBottom: 14,
+                  }}
+                >
+                  ACIERTOS POR TEMA — PEOR A MEJOR
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {aciertoPorTema.map(({ tema, correctas, total }) => {
+                    const pct = Math.round((correctas / total) * 100);
+                    const barColor =
+                      pct >= 70 ? "var(--good)" : pct >= 40 ? "var(--warn)" : "var(--bad)";
                     return (
-                      <div
-                        key={r.id}
-                        className="flex items-center justify-between px-4 py-3 text-sm"
-                      >
-                        <div>
-                          <p className="font-medium text-slate-800 dark:text-slate-200">
-                            {formatFecha(r.fecha)}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {r.preguntas.length} preguntas · {formatTiempo(r.tiempoUsadoSeg)}
-                          </p>
+                      <div key={tema}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <span style={{ fontSize: 12, color: "var(--fg-1)", fontWeight: 500 }}>
+                            {tema}
+                          </span>
+                          <span
+                            className="mono"
+                            style={{ fontSize: 11, color: barColor, fontWeight: 700 }}
+                          >
+                            {correctas}/{total} · {pct}%
+                          </span>
                         </div>
-                        <Badge variant={colorNota}>
-                          {r.nota.toFixed(1)}/10
-                        </Badge>
+                        <div
+                          style={{
+                            height: 5,
+                            background: "var(--bg-2)",
+                            borderRadius: 3,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${pct}%`,
+                              height: "100%",
+                              background: barColor,
+                              borderRadius: 3,
+                            }}
+                          />
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
+
+            {/* Session list */}
+            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              <div
+                style={{
+                  padding: "14px 20px 10px",
+                  borderBottom: "1px solid var(--line-soft)",
+                }}
+              >
+                <span
+                  className="mono"
+                  style={{ fontSize: 10, color: "var(--fg-3)", letterSpacing: "0.08em" }}
+                >
+                  SESIONES RECIENTES
+                </span>
+              </div>
+
+              {[...historial].reverse().map((r, i) => {
+                const notaColor =
+                  r.nota >= 7 ? "var(--good)" : r.nota >= 4 ? "var(--warn)" : "var(--bad)";
+                return (
+                  <div
+                    key={r.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                      padding: "14px 20px",
+                      borderBottom:
+                        i < historial.length - 1 ? "1px solid var(--line-soft)" : undefined,
+                    }}
+                  >
+                    {/* Left color bar */}
+                    <div
+                      style={{
+                        width: 3,
+                        height: 36,
+                        borderRadius: 2,
+                        background: notaColor,
+                        flexShrink: 0,
+                      }}
+                    />
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--fg-0)",
+                          marginBottom: 2,
+                        }}
+                      >
+                        {formatFecha(r.fecha)}
+                      </div>
+                      <span
+                        className="mono"
+                        style={{ fontSize: 10, color: "var(--fg-3)" }}
+                      >
+                        {r.preguntas.length} preguntas · {formatTiempo(r.tiempoUsadoSeg)} · {r.porcentajeAciertos}% aciertos
+                      </span>
+                    </div>
+
+                    <div
+                      className="num"
+                      style={{ fontSize: 20, fontWeight: 800, color: notaColor, flexShrink: 0 }}
+                    >
+                      {r.nota.toFixed(1)}
+                      <span
+                        className="mono"
+                        style={{ fontSize: 11, color: "var(--fg-3)", fontWeight: 400 }}
+                      >
+                        /10
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </>
         )}
-
-        <Dialog open={confirmarBorrar} onOpenChange={setConfirmarBorrar}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>¿Borrar todo el historial?</DialogTitle>
-              <DialogDescription>
-                Esta acción no se puede deshacer. Se eliminarán todos los
-                exámenes guardados ({historial.length} en total).
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setConfirmarBorrar(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleBorrar}
-              >
-                Sí, borrar todo
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
+
+      {/* Confirm delete dialog */}
+      <Dialog open={confirmarBorrar} onOpenChange={setConfirmarBorrar}>
+        <DialogContent
+          style={{
+            background: "var(--bg-1)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: "var(--r-lg)",
+            color: "var(--fg-0)",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: "var(--fg-0)" }}>¿Borrar todo el historial?</DialogTitle>
+            <DialogDescription style={{ color: "var(--fg-2)" }}>
+              Esta acción no se puede deshacer. Se eliminarán los {historial.length} exámenes guardados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter style={{ gap: 8 }}>
+            <button
+              onClick={() => setConfirmarBorrar(false)}
+              style={{
+                padding: "10px 18px",
+                borderRadius: "var(--r-md)",
+                background: "var(--bg-2)",
+                border: "1px solid var(--line-soft)",
+                color: "var(--fg-1)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleBorrar}
+              style={{
+                padding: "10px 18px",
+                borderRadius: "var(--r-md)",
+                background: "var(--bad)",
+                border: "none",
+                color: "oklch(0.97 0.005 250)",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Sí, borrar todo
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function EmptyState() {
+  const router = useRouter();
+  return (
+    <div
+      style={{
+        textAlign: "center",
+        padding: "80px 20px",
+        color: "var(--fg-3)",
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 14,
+          background: "var(--bg-2)",
+          border: "1px solid var(--line-soft)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 20px",
+          fontSize: 24,
+        }}
+      >
+        📊
+      </div>
+      <p style={{ fontSize: 15, fontWeight: 600, color: "var(--fg-1)", margin: "0 0 6px" }}>
+        Todavía no rendiste ningún examen
+      </p>
+      <p style={{ fontSize: 13, color: "var(--fg-3)", margin: "0 0 24px" }}>
+        Tus resultados y estadísticas van a aparecer acá
+      </p>
+      <button
+        onClick={() => router.push("/")}
+        className="btn-primary"
+        style={{ padding: "12px 24px", fontSize: 14 }}
+      >
+        Empezar ahora
+      </button>
+    </div>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  color,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  color?: string;
+}) {
+  return (
+    <div
+      className="card"
+      style={{ padding: "14px 16px" }}
+    >
+      <div
+        className="mono"
+        style={{ fontSize: 9, color: "var(--fg-3)", letterSpacing: "0.08em", marginBottom: 6 }}
+      >
+        {label}
+      </div>
+      <div
+        className="num"
+        style={{ fontSize: 22, fontWeight: 800, color: color ?? "var(--fg-0)", lineHeight: 1 }}
+      >
+        {value}
+      </div>
+      {sub && (
+        <div
+          className="mono"
+          style={{ fontSize: 9, color: "var(--fg-3)", marginTop: 3 }}
+        >
+          {sub}
+        </div>
+      )}
     </div>
   );
 }

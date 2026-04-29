@@ -1,7 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { Bookmark } from "lucide-react";
 import type { RespuestaUsuario } from "@/types/pregunta";
 
 interface NavPreguntasProps {
@@ -20,36 +18,73 @@ export function NavPreguntas({
   onNavegar,
 }: NavPreguntasProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${Math.min(total, 10)}, 1fr)`,
+        gap: 4,
+      }}
+    >
       {Array.from({ length: total }, (_, i) => {
         const id = preguntaIds[i];
         const resp = respuestas[id];
-        const respondida = resp?.respuesta !== undefined && resp?.respuesta !== null;
+        const respondida =
+          resp?.respuesta !== undefined && resp?.respuesta !== null;
         const marcada = resp?.marcadaParaRevisar;
         const activa = i === indiceActual;
+
+        let bg = "var(--bg-2)";
+        let color = "var(--fg-3)";
+        let border = "1px solid var(--line-soft)";
+
+        if (activa) {
+          bg = "var(--accent)";
+          color = "var(--accent-fg)";
+          border = "none";
+        } else if (marcada) {
+          bg = "color-mix(in oklch, var(--warn) 18%, transparent)";
+          color = "var(--warn)";
+          border = "1px solid color-mix(in oklch, var(--warn) 45%, transparent)";
+        } else if (respondida) {
+          bg = "var(--bg-3)";
+          color = "var(--fg-0)";
+          border = "1px solid var(--line)";
+        }
 
         return (
           <button
             key={i}
             onClick={() => onNavegar(i)}
-            className={cn(
-              "relative w-8 h-8 rounded-md text-xs font-semibold border transition-all flex items-center justify-center",
-              activa
-                ? "bg-blue-600 text-white border-blue-600 ring-2 ring-blue-300"
-                : respondida && marcada
-                ? "bg-yellow-100 text-yellow-800 border-yellow-400 dark:bg-yellow-900/40 dark:text-yellow-200"
-                : respondida
-                ? "bg-green-100 text-green-800 border-green-400 dark:bg-green-900/40 dark:text-green-200"
-                : marcada
-                ? "bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300"
-                : "bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-blue-300"
-            )}
+            style={{
+              aspectRatio: "1",
+              borderRadius: 6,
+              fontSize: 10,
+              fontFamily: "var(--font-mono)",
+              fontWeight: activa ? 700 : 500,
+              color,
+              background: bg,
+              border,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              position: "relative",
+              transition: "all 150ms ease",
+            }}
           >
             {i + 1}
             {marcada && (
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-                <Bookmark className="w-2 h-2 text-yellow-900" />
-              </span>
+              <span
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: "var(--warn)",
+                }}
+              />
             )}
           </button>
         );
@@ -60,17 +95,55 @@ export function NavPreguntas({
 
 export function LeyendaNav() {
   return (
-    <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400 mt-3">
-      <span className="flex items-center gap-1">
-        <span className="w-3 h-3 rounded bg-white border border-slate-300 inline-block" />
+    <div
+      className="mono"
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "6px 14px",
+        fontSize: 10,
+        color: "var(--fg-3)",
+        letterSpacing: "0.04em",
+        marginTop: 10,
+      }}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 3,
+            background: "var(--bg-2)",
+            border: "1px solid var(--line-soft)",
+            display: "inline-block",
+          }}
+        />
         Sin responder
       </span>
-      <span className="flex items-center gap-1">
-        <span className="w-3 h-3 rounded bg-green-100 border border-green-400 inline-block" />
+      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 3,
+            background: "var(--bg-3)",
+            border: "1px solid var(--line)",
+            display: "inline-block",
+          }}
+        />
         Respondida
       </span>
-      <span className="flex items-center gap-1">
-        <span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-400 inline-block" />
+      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 3,
+            background: "color-mix(in oklch, var(--warn) 18%, transparent)",
+            border: "1px solid color-mix(in oklch, var(--warn) 45%, transparent)",
+            display: "inline-block",
+          }}
+        />
         Marcada
       </span>
     </div>

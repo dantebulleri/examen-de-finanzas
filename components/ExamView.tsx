@@ -2,16 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Bookmark,
-  BookmarkCheck,
-  PanelRight,
-  CheckCircle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Grid3X3, X } from "lucide-react";
 import { Cronometro } from "@/components/Cronometro";
 import { PreguntaCard } from "@/components/PreguntaCard";
 import { NavPreguntas, LeyendaNav } from "@/components/NavPreguntas";
@@ -40,6 +31,7 @@ export function ExamView({ sesionInicial }: ExamViewProps) {
   const { preguntas, respuestas, indicePreguntaActual, inicioTimestamp, tiempoLimiteSeg } = sesion;
   const preguntaActual = preguntas[indicePreguntaActual];
   const respuestaActual = respuestas[preguntaActual.id];
+  const preguntasIds = preguntas.map((p) => p.id);
 
   const totalRespondidas = Object.values(respuestas).filter(
     (r) => r.respuesta !== null && r.respuesta !== undefined
@@ -72,10 +64,7 @@ export function ExamView({ sesionInicial }: ExamViewProps) {
       ...sesion,
       respuestas: {
         ...respuestas,
-        [preguntaActual.id]: {
-          ...prev,
-          marcadaParaRevisar: !prev.marcadaParaRevisar,
-        },
+        [preguntaActual.id]: { ...prev, marcadaParaRevisar: !prev.marcadaParaRevisar },
       },
     });
   };
@@ -90,12 +79,7 @@ export function ExamView({ sesionInicial }: ExamViewProps) {
       Math.floor((Date.now() - inicioTimestamp) / 1000),
       tiempoLimiteSeg
     );
-    const resultado = calcularResultados(
-      preguntas,
-      respuestas,
-      tiempoUsadoSeg,
-      tiempoLimiteSeg
-    );
+    const resultado = calcularResultados(preguntas, respuestas, tiempoUsadoSeg, tiempoLimiteSeg);
     guardarResultado(resultado);
     borrarSesion();
     router.push(`/resultados?id=${resultado.id}`);
@@ -106,52 +90,106 @@ export function ExamView({ sesionInicial }: ExamViewProps) {
   }, [finalizarExamen]);
 
   const marcada = respuestaActual?.marcadaParaRevisar ?? false;
-  const preguntasIds = preguntas.map((p) => p.id);
+  const esUltima = indicePreguntaActual === preguntas.length - 1;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div style={{ minHeight: "100vh", background: "var(--bg-0)", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              {indicePreguntaActual + 1}
-              <span className="text-slate-400 font-normal">
-                /{preguntas.length}
-              </span>
-            </span>
-          </div>
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          background: "var(--bg-1)",
+          borderBottom: "1px solid var(--line-soft)",
+          padding: "0 20px",
+          height: 52,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        {/* Counter */}
+        <span
+          className="mono"
+          style={{ fontSize: 13, fontWeight: 700, color: "var(--fg-0)", letterSpacing: "0.04em", flexShrink: 0 }}
+        >
+          {String(indicePreguntaActual + 1).padStart(2, "0")}
+          <span style={{ color: "var(--fg-3)", fontWeight: 400 }}>
+            {" / "}
+            {String(preguntas.length).padStart(2, "0")}
+          </span>
+        </span>
 
-          <div className="flex-1 max-w-xs">
-            <Progress
-              value={(totalRespondidas / preguntas.length) * 100}
-              className="h-2"
-            />
-            <p className="text-xs text-center text-slate-400 mt-0.5">
-              {totalRespondidas}/{preguntas.length} respondidas
-            </p>
-          </div>
+        {/* Progress strip */}
+        <div style={{ flex: 1, display: "flex", gap: 2, height: 6, borderRadius: 3, overflow: "hidden" }}>
+          {preguntas.map((p, i) => {
+            const r = respuestas[p.id];
+            const respondida = r?.respuesta !== null && r?.respuesta !== undefined;
+            const marcadaQ = r?.marcadaParaRevisar;
+            const activa = i === indicePreguntaActual;
+            const bg = activa
+              ? "var(--accent)"
+              : marcadaQ
+              ? "var(--warn)"
+              : respondida
+              ? "var(--bg-3)"
+              : "var(--line-soft)";
+            return (
+              <button
+                key={p.id}
+                onClick={() => handleNavegar(i)}
+                style={{
+                  flex: 1,
+                  height: "100%",
+                  background: bg,
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "background 200ms ease",
+                  borderRadius: 2,
+                }}
+              />
+            );
+          })}
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Cronometro
-              tiempoLimiteSeg={tiempoLimiteSeg}
-              inicioTimestamp={inicioTimestamp}
-              onExpiro={handleExpiro}
-            />
-            <button
-              onClick={() => setSidebarAbierto(!sidebarAbierto)}
-              className="p-2 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <PanelRight className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Timer + grid toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <Cronometro
+            tiempoLimiteSeg={tiempoLimiteSeg}
+            inicioTimestamp={inicioTimestamp}
+            onExpiro={handleExpiro}
+            compact
+          />
+          <button
+            onClick={() => setSidebarAbierto(!sidebarAbierto)}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 6,
+              background: sidebarAbierto ? "var(--bg-3)" : "transparent",
+              border: "1px solid var(--line-soft)",
+              color: "var(--fg-2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <Grid3X3 size={14} />
+          </button>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 flex gap-4">
-        {/* Contenido principal */}
-        <main className="flex-1 min-w-0">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">
+      {/* Body */}
+      <div style={{ flex: 1, maxWidth: 800, width: "100%", margin: "0 auto", padding: "0 20px", display: "flex", gap: 20 }}>
+        {/* Main */}
+        <main style={{ flex: 1, minWidth: 0, paddingTop: 28, paddingBottom: 100 }}>
+          {/* Card */}
+          <div
+            className="card"
+            style={{ padding: "28px 28px 24px", marginBottom: 16 }}
+          >
             <PreguntaCard
               pregunta={preguntaActual}
               respuesta={respuestaActual?.respuesta ?? null}
@@ -159,68 +197,164 @@ export function ExamView({ sesionInicial }: ExamViewProps) {
             />
           </div>
 
-          {/* Acciones por pregunta */}
-          <div className="flex items-center justify-between mb-6">
+          {/* Actions row */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 20,
+              padding: "0 2px",
+            }}
+          >
             <button
               onClick={handleMarcada}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-all ${
-                marcada
-                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
-                  : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 dark:text-slate-400"
-              }`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 10px",
+                borderRadius: 6,
+                border: marcada
+                  ? `1px solid color-mix(in oklch, var(--warn) 50%, transparent)`
+                  : "1px solid transparent",
+                background: marcada
+                  ? `color-mix(in oklch, var(--warn) 12%, transparent)`
+                  : "transparent",
+                color: marcada ? "var(--warn)" : "var(--fg-3)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 160ms ease",
+              }}
             >
-              {marcada ? (
-                <BookmarkCheck className="w-4 h-4" />
-              ) : (
-                <Bookmark className="w-4 h-4" />
-              )}
+              {marcada ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
               {marcada ? "Marcada" : "Marcar para revisar"}
             </button>
 
-            <span className="text-xs text-slate-400">
-              Fuente: {preguntaActual.fuente}
+            <span
+              className="mono"
+              style={{ fontSize: 10, color: "var(--fg-3)", letterSpacing: "0.04em" }}
+            >
+              {preguntaActual.fuente}
             </span>
           </div>
 
-          {/* Navegación */}
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
+          {/* Navigation */}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
               onClick={() => handleNavegar(indicePreguntaActual - 1)}
               disabled={indicePreguntaActual === 0}
-              className="flex items-center gap-1"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "12px 18px",
+                borderRadius: "var(--r-md)",
+                background: "var(--bg-2)",
+                border: "1px solid var(--line-soft)",
+                color: indicePreguntaActual === 0 ? "var(--fg-3)" : "var(--fg-1)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: indicePreguntaActual === 0 ? "default" : "pointer",
+                opacity: indicePreguntaActual === 0 ? 0.4 : 1,
+                transition: "all 160ms ease",
+              }}
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft size={16} />
               Anterior
-            </Button>
+            </button>
 
-            {indicePreguntaActual < preguntas.length - 1 ? (
-              <Button
+            {!esUltima ? (
+              <button
                 onClick={() => handleNavegar(indicePreguntaActual + 1)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 flex items-center justify-center gap-1"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "12px 18px",
+                  borderRadius: "var(--r-md)",
+                  background: "var(--accent)",
+                  border: "none",
+                  color: "var(--accent-fg)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "opacity 160ms ease",
+                }}
               >
                 Siguiente
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+                <ChevronRight size={16} />
+              </button>
             ) : (
-              <Button
+              <button
                 onClick={() => setConfirmarFinalizar(true)}
-                className="flex-1 bg-green-600 hover:bg-green-700 flex items-center justify-center gap-1"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "12px 18px",
+                  borderRadius: "var(--r-md)",
+                  background: "var(--good)",
+                  border: "none",
+                  color: "oklch(0.16 0.05 155)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "opacity 160ms ease",
+                }}
               >
-                <CheckCircle className="w-4 h-4" />
-                Finalizar
-              </Button>
+                Finalizar examen
+              </button>
             )}
           </div>
         </main>
 
         {/* Sidebar desktop */}
         {sidebarAbierto && (
-          <aside className="hidden sm:block w-56 flex-shrink-0">
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sticky top-20">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-                Preguntas
-              </h3>
+          <aside
+            className="hidden-mobile"
+            style={{
+              width: 220,
+              flexShrink: 0,
+              paddingTop: 28,
+            }}
+          >
+            <div
+              className="card"
+              style={{ padding: 16, position: "sticky", top: 72 }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                }}
+              >
+                <span
+                  className="mono"
+                  style={{ fontSize: 10, color: "var(--fg-3)", letterSpacing: "0.06em" }}
+                >
+                  PREGUNTAS
+                </span>
+                <button
+                  onClick={() => setSidebarAbierto(false)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--fg-3)",
+                    cursor: "pointer",
+                    padding: 2,
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </div>
               <NavPreguntas
                 total={preguntas.length}
                 indiceActual={indicePreguntaActual}
@@ -229,28 +363,80 @@ export function ExamView({ sesionInicial }: ExamViewProps) {
                 onNavegar={handleNavegar}
               />
               <LeyendaNav />
-              <Button
+              <button
                 onClick={() => setConfirmarFinalizar(true)}
-                size="sm"
-                className="w-full mt-4 bg-green-600 hover:bg-green-700"
+                style={{
+                  width: "100%",
+                  marginTop: 14,
+                  padding: "10px 0",
+                  borderRadius: "var(--r-md)",
+                  background: "var(--good)",
+                  border: "none",
+                  color: "oklch(0.16 0.05 155)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
               >
                 Finalizar
-              </Button>
+              </button>
             </div>
           </aside>
         )}
       </div>
 
-      {/* Sidebar móvil */}
+      {/* Mobile bottom sheet */}
       {sidebarAbierto && (
-        <div className="sm:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setSidebarAbierto(false)}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            background: "rgba(0,0,0,0.55)",
+          }}
+          onClick={() => setSidebarAbierto(false)}
+        >
           <div
-            className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-800 rounded-t-2xl p-5 max-h-[70vh] overflow-y-auto"
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: "var(--bg-1)",
+              borderTop: "1px solid var(--line-soft)",
+              borderRadius: "16px 16px 0 0",
+              padding: 20,
+              maxHeight: "65vh",
+              overflowY: "auto",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-              Preguntas
-            </h3>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <span
+                className="mono"
+                style={{ fontSize: 11, color: "var(--fg-3)", letterSpacing: "0.06em" }}
+              >
+                PREGUNTAS — {totalRespondidas}/{preguntas.length} respondidas
+              </span>
+              <button
+                onClick={() => setSidebarAbierto(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--fg-2)",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
             <NavPreguntas
               total={preguntas.length}
               indiceActual={indicePreguntaActual}
@@ -259,44 +445,80 @@ export function ExamView({ sesionInicial }: ExamViewProps) {
               onNavegar={handleNavegar}
             />
             <LeyendaNav />
-            <Button
+            <button
               onClick={() => setConfirmarFinalizar(true)}
-              className="w-full mt-4 bg-green-600 hover:bg-green-700"
+              style={{
+                width: "100%",
+                marginTop: 16,
+                padding: "14px 0",
+                borderRadius: "var(--r-md)",
+                background: "var(--good)",
+                border: "none",
+                color: "oklch(0.16 0.05 155)",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
             >
               Finalizar examen
-            </Button>
+            </button>
           </div>
         </div>
       )}
 
-      {/* Dialog confirmar finalizar */}
+      {/* Confirm dialog */}
       <Dialog open={confirmarFinalizar} onOpenChange={setConfirmarFinalizar}>
-        <DialogContent>
+        <DialogContent
+          style={{
+            background: "var(--bg-1)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: "var(--r-lg)",
+            color: "var(--fg-0)",
+          }}
+        >
           <DialogHeader>
-            <DialogTitle>¿Finalizar el examen?</DialogTitle>
-            <DialogDescription>
+            <DialogTitle style={{ color: "var(--fg-0)" }}>¿Finalizar el examen?</DialogTitle>
+            <DialogDescription style={{ color: "var(--fg-2)" }}>
               Respondiste {totalRespondidas} de {preguntas.length} preguntas.
               {totalRespondidas < preguntas.length && (
-                <span className="block mt-1 text-yellow-600 dark:text-yellow-400">
+                <span style={{ display: "block", marginTop: 6, color: "var(--warn)" }}>
                   Tenés {preguntas.length - totalRespondidas} pregunta
                   {preguntas.length - totalRespondidas !== 1 ? "s" : ""} sin responder.
                 </span>
               )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
+          <DialogFooter style={{ gap: 8 }}>
+            <button
               onClick={() => setConfirmarFinalizar(false)}
+              style={{
+                padding: "10px 18px",
+                borderRadius: "var(--r-md)",
+                background: "var(--bg-2)",
+                border: "1px solid var(--line-soft)",
+                color: "var(--fg-1)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
             >
               Seguir respondiendo
-            </Button>
-            <Button
+            </button>
+            <button
               onClick={finalizarExamen}
-              className="bg-green-600 hover:bg-green-700"
+              style={{
+                padding: "10px 18px",
+                borderRadius: "var(--r-md)",
+                background: "var(--good)",
+                border: "none",
+                color: "oklch(0.16 0.05 155)",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
             >
               Sí, finalizar
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
